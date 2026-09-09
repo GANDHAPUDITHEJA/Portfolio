@@ -603,5 +603,193 @@
   })();
 </script>
 
+<!-- ================= AI AGENT WIDGET ================= -->
+<style>
+  #ai-agent-launcher{
+    position:fixed; right:24px; bottom:24px; z-index:999;
+    width:56px; height:56px; border-radius:50%;
+    background:var(--accent); color:var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; border:none; box-shadow:0 8px 24px rgba(79,216,196,0.35);
+    transition:transform .15s ease;
+  }
+  #ai-agent-launcher:hover{ transform:scale(1.06); }
+  #ai-agent-launcher svg{ width:26px; height:26px; }
+
+  #ai-agent-panel{
+    position:fixed; right:24px; bottom:92px; z-index:999;
+    width:360px; max-width:calc(100vw - 32px);
+    height:500px; max-height:calc(100vh - 140px);
+    background:var(--bg-elev); border:1px solid var(--line);
+    border-radius:12px; overflow:hidden;
+    display:none; flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    font-family:'Inter', sans-serif;
+  }
+  #ai-agent-panel.open{ display:flex; }
+
+  #ai-agent-header{
+    padding:16px 18px; background:var(--bg-elev-2);
+    border-bottom:1px solid var(--line-soft);
+    display:flex; align-items:center; gap:10px;
+  }
+  #ai-agent-header .dot{ width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+  #ai-agent-header .title{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; color:var(--text); }
+  #ai-agent-header .sub{ font-family:'JetBrains Mono'; font-size:11px; color:var(--text-faint); margin-top:2px; }
+  #ai-agent-close{
+    margin-left:auto; background:none; border:none; color:var(--text-dim);
+    cursor:pointer; font-size:18px; line-height:1; padding:4px;
+  }
+  #ai-agent-close:hover{ color:var(--text); }
+
+  #ai-agent-messages{
+    flex:1; overflow-y:auto; padding:16px 14px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .ai-msg{ max-width:86%; padding:10px 13px; border-radius:10px; font-size:13.5px; line-height:1.5; white-space:pre-wrap; }
+  .ai-msg.user{ align-self:flex-end; background:var(--accent-dim); color:var(--text); border:1px solid var(--accent); }
+  .ai-msg.bot{ align-self:flex-start; background:var(--bg-elev-2); color:var(--text); border:1px solid var(--line-soft); }
+  .ai-msg.typing{ color:var(--text-faint); font-family:'JetBrains Mono'; font-size:12px; }
+
+  .ai-suggestions{ display:flex; flex-wrap:wrap; gap:6px; padding:0 14px 12px; }
+  .ai-chip{
+    font-family:'JetBrains Mono'; font-size:11px; color:var(--accent-2);
+    border:1px solid var(--line); border-radius:20px; padding:5px 10px;
+    background:transparent; cursor:pointer;
+  }
+  .ai-chip:hover{ border-color:var(--accent-2); }
+
+  #ai-agent-inputrow{
+    display:flex; gap:8px; padding:12px; border-top:1px solid var(--line-soft);
+    background:var(--bg-elev);
+  }
+  #ai-agent-input{
+    flex:1; background:var(--bg-elev-2); border:1px solid var(--line);
+    border-radius:8px; padding:10px 12px; color:var(--text); font-size:13.5px;
+    font-family:'Inter', sans-serif; resize:none; outline:none;
+  }
+  #ai-agent-input:focus{ border-color:var(--accent); }
+  #ai-agent-send{
+    background:var(--accent); color:var(--bg); border:none; border-radius:8px;
+    padding:0 16px; font-family:'Space Grotesk'; font-weight:600; font-size:13px;
+    cursor:pointer;
+  }
+  #ai-agent-send:disabled{ opacity:0.5; cursor:default; }
+
+  @media (max-width:480px){
+    #ai-agent-panel{ right:16px; bottom:84px; width:calc(100vw - 32px); }
+    #ai-agent-launcher{ right:16px; bottom:16px; }
+  }
+</style>
+
+<button id="ai-agent-launcher" aria-label="Chat with Theja's AI agent">
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 3C7.03 3 3 6.58 3 11c0 2.39 1.19 4.53 3.06 5.99-.1.98-.5 2.36-1.56 3.7 0 0 2.4-.28 4.4-1.86.97.25 2.01.38 3.1.38 4.97 0 9-3.58 9-8s-4.03-8-9-8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+  </svg>
+</button>
+
+<div id="ai-agent-panel">
+  <div id="ai-agent-header">
+    <span class="dot"></span>
+    <div>
+      <div class="title">Ask about Theja</div>
+      <div class="sub">AI agent · knows his projects &amp; GitHub</div>
+    </div>
+    <button id="ai-agent-close" aria-label="Close chat">✕</button>
+  </div>
+  <div id="ai-agent-messages"></div>
+  <div class="ai-suggestions" id="ai-agent-suggestions">
+    <button class="ai-chip" data-q="Tell me about yourself">About him</button>
+    <button class="ai-chip" data-q="What are your GitHub repositories?">GitHub repos</button>
+    <button class="ai-chip" data-q="Walk me through your AI Customer Support project">A project, in depth</button>
+    <button class="ai-chip" data-q="What are your skills?">Skills</button>
+  </div>
+  <div id="ai-agent-inputrow">
+    <textarea id="ai-agent-input" rows="1" placeholder="Ask me anything about Theja..."></textarea>
+    <button id="ai-agent-send">Send</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ⚠️ Replace this with your deployed Lambda Function URL after deployment.
+  const AI_AGENT_ENDPOINT = "https://jvascgraqa7iliayinghcf64x40pypwr.lambda-url.eu-north-1.on.aws/";
+
+  const launcher = document.getElementById('ai-agent-launcher');
+  const panel = document.getElementById('ai-agent-panel');
+  const closeBtn = document.getElementById('ai-agent-close');
+  const messagesEl = document.getElementById('ai-agent-messages');
+  const input = document.getElementById('ai-agent-input');
+  const sendBtn = document.getElementById('ai-agent-send');
+  const suggestions = document.getElementById('ai-agent-suggestions');
+
+  let history = [];
+  let opened = false;
+
+  function addMessage(role, text){
+    const div = document.createElement('div');
+    div.className = 'ai-msg ' + (role === 'user' ? 'user' : 'bot');
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function togglePanel(){
+    opened = !opened;
+    panel.classList.toggle('open', opened);
+    if(opened && messagesEl.children.length === 0){
+      addMessage('bot', "Hi, I'm Theja's AI agent 👋 Ask me about his experience, skills, projects, or GitHub repos.");
+    }
+  }
+
+  launcher.addEventListener('click', togglePanel);
+  closeBtn.addEventListener('click', togglePanel);
+
+  suggestions.addEventListener('click', (e)=>{
+    const q = e.target.getAttribute('data-q');
+    if(q){ input.value = q; sendMessage(); }
+  });
+
+  async function sendMessage(){
+    const text = input.value.trim();
+    if(!text) return;
+    addMessage('user', text);
+    history.push({role:'user', content:text});
+    input.value = '';
+    sendBtn.disabled = true;
+
+    const typingEl = addMessage('bot', 'Thinking…');
+    typingEl.classList.add('typing');
+
+    try{
+      const res = await fetch(AI_AGENT_ENDPOINT, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ message:text, history: history.slice(-8) })
+      });
+      const data = await res.json();
+      typingEl.remove();
+      const reply = data.reply || data.error || "Sorry, I couldn't get a response. Please try again.";
+      addMessage('bot', reply);
+      history.push({role:'assistant', content:reply});
+    }catch(err){
+      typingEl.remove();
+      addMessage('bot', "I couldn't reach my AI backend. If you're the site owner, make sure AI_AGENT_ENDPOINT is set to your deployed Lambda Function URL.");
+    }finally{
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
