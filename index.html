@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,700&family=Playfair+Display:ital,wght@0,600;1,400;1,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <style>
   :root {
     --bg: #09090b;
@@ -622,6 +623,18 @@
   .ai-msg.bot { align-self: flex-start; background: var(--bg-elev); color: var(--text); border: 1px solid var(--border); }
   .ai-msg.typing { color: var(--text-muted); font-family: 'JetBrains Mono'; font-size: 12px; }
 
+  /* Markdown rendering inside bot messages */
+  .ai-msg.bot p { margin: 0 0 8px; }
+  .ai-msg.bot p:last-child { margin-bottom: 0; }
+  .ai-msg.bot ul, .ai-msg.bot ol { margin: 0 0 8px 18px; padding: 0; }
+  .ai-msg.bot li { margin-bottom: 4px; }
+  .ai-msg.bot strong { color: var(--primary); }
+  .ai-msg.bot a { color: var(--primary); text-decoration: underline; }
+  .ai-msg.bot code {
+    background: var(--bg-elev-2); padding: 2px 5px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+  }
+
   .ai-suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
   .ai-chip {
     font-family: 'JetBrains Mono'; font-size: 11px; color: var(--primary);
@@ -983,7 +996,15 @@
   function addMessage(role, text){
     const div = document.createElement('div');
     div.className = 'ai-msg ' + (role === 'user' ? 'user' : 'bot');
-    div.textContent = text;
+
+    if(role === 'user'){
+      // Plain text for user input — never render visitor input as HTML.
+      div.textContent = text;
+    } else {
+      // Render bot replies as Markdown -> HTML (bold, lists, links, etc.)
+      div.innerHTML = marked.parse(text);
+    }
+
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return div;
